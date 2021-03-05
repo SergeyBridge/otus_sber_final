@@ -1,7 +1,7 @@
 # Финальный проект курса в учебном центре "Отус" 
 # "Machine learning. Advanced"
 
-1. Главная идея проекта - показать асимметричную функцию потерь AsymmetricLoss (FocalLoss)
+1. Главная идея проекта - реализовать асимметричную функцию потерь AsymmetricLoss (FocalLoss)
 2. Использовались анонимизированные данные о транзакциях клиентов банка
 
 ## Описание задачи
@@ -31,7 +31,7 @@
 Также можно предложить и добавить к данным характеристики макроэкономических условий
 из открытых источников (Росстат, ЦБ РФ и прочие статистические ресурсы).
 ________________________  
-Использовалась модель Catboost
+Рассматривалась библиотека Catboost
 ________________________
  Функцию потерь (LossObjective) и целевую  метрику (EvalMetric, CustomMetric) можно добавить в виде встроенной (native) или внешней функции.
  
@@ -43,13 +43,24 @@ ________________________
  
  Ход эксперимента:
  
- 1. baseline - на наших данных применить встроенную оптимизированную LogLoss. 
- 2. Реализовать свои функции logloss на Python, сравнить быстродействие. (в файле custom_metrics.py, LoglossObjective_np и LoglossObjective_loop) 
- 3. Реализовать свою logloss на Cython, также рсавнить быстродействие
- 4. Реализовать внешнюю FocalLoss и её обобщение AsymmetricLoss, для сравнения качества прогноза с эталонной штатной LogLoss. Идея взята [здесь](https://arxiv.org/pdf/2009.14119.pdf) 
+ 0. baseline - на наших данных применить встроенную оптимизированную LogLoss. 
+ 1. Реализовать свои функции logloss на Python, сравнить быстродействие. (лежат в репозитории в файле custom_metrics.py, LoglossObjective_np и LoglossObjective_loop) 
+ 2. Реализовать свою logloss на Cython, также сравнить быстродействие
+ 3. Реализовать внешнюю FocalLoss и её обобщение AsymmetricLoss на Python, для сравнения качества прогноза с эталонной штатной LogLoss. 
+    Идея взята [здесь: для скачивания](https://arxiv.org/pdf/2009.14119.pdf) здесь можно посмотреть, не скачивая [просмотр](https://docviewer.yandex.ru/view/23456321/?*=4FRdUQNlk62EFlLfo5GkiSzAOY97InVybCI6Imh0dHBzOi8vYXJ4aXYub3JnL3BkZi8yMDA5LjE0MTE5LnBkZiIsInRpdGxlIjoiMjAwOS4xNDExOS5wZGYiLCJub2lmcmFtZSI6dHJ1ZSwidWlkIjoiMjM0NTYzMjEiLCJ0cyI6MTYxNDk0NTY4Nzg4OCwieXUiOiI5MDUzNDIzNDQxNjAwODExNjk3Iiwic2VycFBhcmFtcyI6Imxhbmc9ZW4mdG09MTYxNDk0NTQyNSZ0bGQ9cnUmbmFtZT0yMDA5LjE0MTE5LnBkZiZ0ZXh0PWFzeW1tZXRyaWMrbG9zcytmdW5jdGlvbitEQU1PK0FjYWRlbXklMkMrQWxpYmFiYStHcm91cCZ1cmw9aHR0cHMlM0EvL2FyeGl2Lm9yZy9wZGYvMjAwOS4xNDExOS5wZGYmbHI9MjEzJm1pbWU9cGRmJmwxMG49cnUmc2lnbj01OGIyOWY4NGI2MGU4OTg1OWM5MDAyZGMyMWIxNjFjNCZrZXlubz0wIn0%3D&lang=en) 
    
  
-  
- Catboost, однако, на конец февраля
-   
-на конец февраля в catboost было невозможно добавить внешнюю
+Итог тестов:
+ 1. Быстродействие реализации на Python c использованием numpy отстает по скорости экспоненциально, на 20 итерациях раз в 5-7, на 200 итерациях примерно в 400 раз
+ 2. На Cython запуститься не удалось, не успел разобраться, как импортировать тип данных _FloatArrayWrapper , указано в [issue 1129](https://github.com/catboost/catboost/issues/1129), вернусь к этой задаче в дальнейшем. 
+  Также есть возможность ускорить Cython реализацию,  Using np.fromiter instead of np.array to convert from _FloatArrayWrapper to numpy.ndarray speeds things up a lot.  [ussue 398](https://github.com/catboost/catboost/issues/398)  
+ 3. Реализация AsymmetricLoss на этих данных заходит отлично, штатный loggloss удается обогнать начиная с 10-20 итерации, и отрыв к 50 итерации увеличился. Дальше не пробовал из-за недостатка времени перед сдачей проекта. Здесь FocalLoss, частный случай более общей функции ASL (AsymmetricLoss), сработал лучше всего    
+
+Заключение:
+1. Стек разработки своей функции потерь лучше всего организовать так:
+    -  Сначала посчитать производные 1го и 2го порядка в sympy, (sp.diff, sp.lamdify), упростить формулы автоматически
+    - передать в Python или Cython автоматически сгенерированные функции, на 500тыс наблюдений такая модель сможет за ночь перебрать несколько тысяч итераций, этого достатосно, чтобы решить, интересна эта функция потерь или нет
+    - всё прекрасно распараллеливается, поэтому можно вставлять скрипты в Common Workflow CWL пайплайн, и пускать тестируемые фуекции пакетами на Kubernetes, Arvados CWL прекрасно справится с задачей
+    - понравившуюся функцию следует реализовать на C++. [инструкция для С++ здесь](https://github.com/catboost/tutorials/blob/master/custom_loss/custom_metric_tutorial.md)
+    - выполнить вручную оптимизацию вычисления производной, т.к. 1я и, особенно,  2я производные могут быть очень длинными (для ASL 2я производная получилась почти в одну печатную страницу)  
+    
