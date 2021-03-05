@@ -17,9 +17,10 @@ class AsymmetricLossObjective(object):
 
         e = np.exp(x)
         p = e / (1 + e)
-
-        der1 = self.der1(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus)
-        der2 = self.der2(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus)
+        log_p = np.log(p)
+        log_1minus_p = np.log(1-p)
+        der1 = self.der1(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus, log_p=log_p, log_1minus_p=log_1minus_p)
+        der2 = self.der2(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus, log_p=log_p, log_1minus_p=log_1minus_p)
 
         if weights is not None:
             der1 *= weights
@@ -58,7 +59,6 @@ class LoglossObjective_np(object):
         assert len(approxes) == len(targets)
         if weights is not None:
             assert len(weights) == len(approxes)
-
 
 
         e = np.exp(approxes)
@@ -139,7 +139,8 @@ def get_simplified_derivative(derivative, verbose=False, der_name='ALS_der'):
 
     p, x, y = sp.symbols('p x y')
     g_minus, g_plus = sp.symbols('g_minus g_plus')
-    # p = sp.symbols('p')
+
+    log_p, log_1minus_p = sp.symbols(log_p, log_1minus_p)
     der = derivative
 
     print_der(derivative, 'Входящая функция производной')
@@ -156,23 +157,29 @@ def get_simplified_derivative(derivative, verbose=False, der_name='ALS_der'):
     der = sp.simplify(der)
     print_der(der, '*********** sp.symplify(der) *************')
 
-    der = sp.factor(der)
-    print_der(der, '*********** sp.factor(der) *************')
-
-    der = sp.factor(der)
-    print_der(der, '*********** sp.factor(der) *************')
-
-    der = sp.simplify(der)
-    print_der(der, '*********** sp.symplify(der) *************')
-
+    # der = sp.factor(der)
+    # print_der(der, '*********** sp.factor(der) *************')
+    #
     der = der.subs(sp.exp(x), p / (1 - p))
     print_der(der, '**********    der.subs(sp.exp(x), p / (1-p))  *****************')
 
-    der = sp.factor(der)
-    print_der(der, '*********** sp.factor(der) *************')
+    der = sp.simplify(der)
+    print_der(der, '*********** sp.symplify(der) *************')
+
+    der = der.subs(sp.log(p), log_p)
+    print_der(der, '**********    der.subs(sp.log(p), log_p)  *****************')
+
+    der = der.subs(sp.log(1-p), log_1minus_p)
+    print_der(der, '**********    der.subs(sp.log(1-p), log_1minus_p)  *****************')
 
     der = sp.simplify(der)
     print_der(der, '*********** sp.symplify(der) *************')
+
+    # der = sp.factor(der)
+    # print_der(der, '*********** sp.factor(der) *************')
+    #
+    # der = sp.simplify(der)
+    # print_der(der, '*********** sp.symplify(der) *************')
 
     der_lambdify = sp.lambdify([p, y, g_minus, g_plus], der, 'numpy')
 
