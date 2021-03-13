@@ -19,8 +19,12 @@ class AsymmetricLossObjective(object):
         p = e / (1 + e)
         log_p = np.log(p)
         log_1minus_p = np.log(1-p)
+
         der1 = self.der1(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus, log_p=log_p, log_1minus_p=log_1minus_p)
         der2 = self.der2(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus, log_p=log_p, log_1minus_p=log_1minus_p)
+
+        # der1 = self.der1(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus)
+        # der2 = self.der2(p=p, y=y, g_minus=self.g_minus, g_plus=self.g_plus)
 
         if weights is not None:
             der1 *= weights
@@ -120,7 +124,6 @@ def AsymmetricLossFormulas():
     display(sp.Eq(sp.S('L__der2'), der2))
     return der1, der2
 
-# der1_ALS, der2_ALS = AsymmetricLossFormulas()
 
 
 def get_simplified_derivative(derivative, verbose=False, der_name='ALS_der'):
@@ -139,8 +142,9 @@ def get_simplified_derivative(derivative, verbose=False, der_name='ALS_der'):
 
     p, x, y = sp.symbols('p x y')
     g_minus, g_plus = sp.symbols('g_minus g_plus')
+    log_p, log_1minus_p = sp.symbols('log_p log_1minus_p')
 
-    log_p, log_1minus_p = sp.symbols(log_p, log_1minus_p)
+    # log_p, log_1minus_p = sp.symbols(log_p, log_1minus_p)
     der = derivative
 
     print_der(derivative, 'Входящая функция производной')
@@ -154,17 +158,8 @@ def get_simplified_derivative(derivative, verbose=False, der_name='ALS_der'):
     der = der.subs((1 + sp.exp(x)) ** 2 * sp.exp(x) ** (-2), p ** (-2))
     print_der(der, '**********    der.subs((1 + sp.exp(x))**2 * sp.exp(x)**(-2), p**(-2))  *****************')
 
-    der = sp.simplify(der)
-    print_der(der, '*********** sp.symplify(der) *************')
-
-    # der = sp.factor(der)
-    # print_der(der, '*********** sp.factor(der) *************')
-    #
     der = der.subs(sp.exp(x), p / (1 - p))
     print_der(der, '**********    der.subs(sp.exp(x), p / (1-p))  *****************')
-
-    der = sp.simplify(der)
-    print_der(der, '*********** sp.symplify(der) *************')
 
     der = der.subs(sp.log(p), log_p)
     print_der(der, '**********    der.subs(sp.log(p), log_p)  *****************')
@@ -175,13 +170,10 @@ def get_simplified_derivative(derivative, verbose=False, der_name='ALS_der'):
     der = sp.simplify(der)
     print_der(der, '*********** sp.symplify(der) *************')
 
-    # der = sp.factor(der)
-    # print_der(der, '*********** sp.factor(der) *************')
-    #
-    # der = sp.simplify(der)
-    # print_der(der, '*********** sp.symplify(der) *************')
+    der = sp.factor(der)
+    print_der(der, '*********** sp.factor(der) *************')
 
-    der_lambdify = sp.lambdify([p, y, g_minus, g_plus], der, 'numpy')
+    der_lambdify = sp.lambdify([p, y, g_minus, g_plus, log_p, log_1minus_p], der, 'numpy')
 
     return der_lambdify
 

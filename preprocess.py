@@ -5,9 +5,6 @@ import pandas as pd
 import warnings
 import config
 
-os.environ['PYARROW_IGNORE_TIMEZONE'] = '1'
-import featuretools as ft
-
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
